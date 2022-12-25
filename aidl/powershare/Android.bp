@@ -1,0 +1,16 @@
+rust_binary {
+    name: "vendor.lineage.powershare-service.oplus",
+    vintf_fragments: ["vendor.lineage.powershare-service.oplus.xml"],
+    init_rc: ["vendor.lineage.powershare-service.oplus.rc"],
+    relative_install_path: "hw",
+
+    vendor: true,
+    srcs: [
+        "src/main.rs",
+    ],
+    prefer_rlib: true,
+    rustlibs: [
+        "libbinder_rs",
+        "vendor.lineage.powershare-V1-rust",
+    ],
+}
