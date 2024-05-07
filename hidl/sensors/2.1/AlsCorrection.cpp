@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+//#define LOG_NDEBUG 0
 #include "AlsCorrection.h"
 
 #include <android-base/properties.h>
@@ -94,6 +95,7 @@ static T get(const std::string& path, const T& def) {
 }
 
 void AlsCorrection::init() {
+    ALOGE("----------- ALS INIT ------------");
     std::istringstream is;
     conf.hbr = GetBoolProperty("persist.vendor.sensors.als_correction.hbr", false);
     conf.bias = GetIntProperty("persist.vendor.sensors.als_correction.bias", 0);
@@ -143,18 +145,23 @@ void AlsCorrection::init() {
         conf.sensor_inverse_gain[0] = row_coe / 1000.0;
     }
     conf.agc_threshold = 800.0 / conf.sensor_inverse_gain[0];
+    ALOGI("ALS: agc_threshold: %.2fx", conf.agc_threshold);
 
     float cali_coe = GetIntProperty("persist.vendor.sensors.als_correction.cali_coe", 0);
     conf.calib_gain = cali_coe > 0.0 ? cali_coe / 1000.0 : 1.0;
-    ALOGI("Calibrated sensor gain: %.2fx", 1.0 / (conf.calib_gain * conf.sensor_inverse_gain[0]));
+    ALOGI("ALS: Calibrated sensor gain: %.2fx", conf.calib_gain);
 
     conf.max_brightness = get(BRIGHTNESS_DIR "max_brightness", 1023.0);
+    ALOGI("ALS: max_brightness: %.2fx", conf.max_brightness);
 
     for (auto& range : hysteresis_ranges) {
         range.min /= conf.calib_gain * conf.sensor_inverse_gain[0];
         range.max /= conf.calib_gain * conf.sensor_inverse_gain[0];
     }
     hysteresis_ranges[0].min = -1.0;
+    for (auto& range : hysteresis_ranges) {
+        ALOGI("ALS: hysteresis_range: min=%f, middle=%f, max=%f", range.min, range.middle, range.max);
+    }
 
     const auto instancename = std::string(IAreaCapture::descriptor) + "/default";
 
@@ -169,7 +176,14 @@ void AlsCorrection::init() {
 void AlsCorrection::process(Event& event) {
     static AreaRgbCaptureResult screenshot = { 0.0, 0.0, 0.0 };
 
-    ALOGV("Raw sensor reading: %.0f", event.u.scalar);
+    ALOGV("ALS: %f %f %f %f",
+            event.u.data[0],
+            event.u.data[1],
+            event.u.data[2],
+            event.u.data[4]
+         );
+
+    ALOGV("ALS: Raw sensor reading: %.0f", event.u.scalar);
 
     if (event.u.scalar > conf.bias) {
         event.u.scalar -= conf.bias;
@@ -177,18 +191,19 @@ void AlsCorrection::process(Event& event) {
 
     nsecs_t now = systemTime(SYSTEM_TIME_BOOTTIME);
     float brightness = get(BRIGHTNESS_DIR "brightness", 0.0);
+    ALOGV("ALS: Got brightness %f", brightness);
 
     if (state.last_update == 0) {
         state.last_update = now;
         state.last_forced_update = now;
     } else {
         if (brightness > 0.0 && (now - state.last_forced_update) > s2ns(3)) {
-            ALOGV("Forcing screenshot");
+            ALOGV("ALS: Forcing screenshot");
             state.last_forced_update = now;
             state.force_update = true;
         }
         if ((now - state.last_update) < ms2ns(100)) {
-            ALOGV("Events coming too fast, dropping");
+            ALOGE("ALS: Events coming too fast, dropping");
             // TODO figure out a better way to drop events
             event.sensorHandle = 0;
             return;
@@ -197,17 +212,18 @@ void AlsCorrection::process(Event& event) {
     }
 
     float sensor_raw_calibrated = event.u.scalar * conf.calib_gain * state.last_agc_gain;
+    ALOGV("ALS: Sensor raw calibrated: %.f", sensor_raw_calibrated);
     if (state.force_update
             || ((event.u.scalar < state.hyst_min || event.u.scalar > state.hyst_max)
                 && (sensor_raw_calibrated < 10.0 || sensor_raw_calibrated > (5.0 / .07)))) {
 
         if (service == nullptr || !service->getAreaBrightness(&screenshot).isOk()) {
-            ALOGE("Could not get area above sensor");
+            ALOGE("ALS: Could not get area above sensor");
             // TODO figure out a better way to drop events
             event.sensorHandle = 0;
             return;
         }
-        ALOGV("Screen color above sensor: %f %f %f", screenshot.r, screenshot.g, screenshot.b);
+        ALOGV("ALS: Screen color above sensor: %f %f %f", screenshot.r, screenshot.g, screenshot.b);
 
         float rgbw[4] = {
             screenshot.r, screenshot.g, screenshot.b,
@@ -229,16 +245,21 @@ void AlsCorrection::process(Event& event) {
                 cumulative_correction -= corr;
             }
         }
+        ALOGV("ALS: Cumulative_correction color: %.0f", cumulative_correction);
+
         cumulative_correction *= brightness / conf.max_brightness;
         float brightness_fullwhite = conf.rgbw_max_lux[3] * brightness / conf.max_brightness;
         float brightness_grayscale_gamma = std::pow(rgbw[3] / 255.0, 2.2) * brightness_fullwhite;
+        ALOGV("ALS: Min of cumulative_correction color and brightness_fullwhite: %.0f and %.0f", cumulative_correction, brightness_fullwhite);
         cumulative_correction = std::min(cumulative_correction, brightness_fullwhite);
+        ALOGV("ALS: Max of cumulative_correction color and brightness_grayscale_gamma: %.0f and %.0f", cumulative_correction, brightness_grayscale_gamma);
         cumulative_correction = std::max(cumulative_correction, brightness_grayscale_gamma);
-        ALOGV("Estimated screen brightness: %.0f", cumulative_correction);
+        ALOGV("ALS: Estimated screen brightness: %.0f", cumulative_correction);
 
         float sensor_raw_corrected = std::max(event.u.scalar - cumulative_correction, 0.0f);
 
         float agc_gain = conf.sensor_inverse_gain[0];
+        ALOGV("ALS: sensor_raw_corrected1: %f lux, agc_gain=%f agc_threshold=%.0f", sensor_raw_corrected, agc_gain, conf.agc_threshold);
         if (sensor_raw_corrected > conf.agc_threshold) {
             float gain_estimate = 0;
             if (conf.hbr) {
@@ -246,18 +267,21 @@ void AlsCorrection::process(Event& event) {
             } else {
                 gain_estimate = sensor_raw_corrected / event.u.data[2];
             }
+            ALOGV("ALS: Using gain_estimate: %.0f", gain_estimate);
             for (int i = 0; i < 4; i++) {
                 if (gain_estimate > conf.sensor_gaincal_points[i]) {
+                    ALOGV("ALS: Using gain_estimate: sensor_gaincal_points[%d]: %.0f %.0f", i, conf.sensor_gaincal_points[i], conf.sensor_inverse_gain[i]);
                     agc_gain = conf.sensor_inverse_gain[i];
                 }
             }
         }
-        ALOGV("AGC gain: %f", agc_gain);
+        ALOGV("ALS: AGC gain: %f", agc_gain);
 
         if (cumulative_correction <= event.u.scalar * 1.35
                 || event.u.scalar * conf.calib_gain * agc_gain < 10000.0
                 || state.force_update) {
             float sensor_corrected = sensor_raw_corrected * conf.calib_gain * agc_gain;
+            ALOGV("ALS: Corrected sensor value after applying conf.calib_gain (%f) and agc_gain (%f): %.0f lux", conf.calib_gain, agc_gain, sensor_corrected);
             state.last_agc_gain = agc_gain;
             for (auto& range : hysteresis_ranges) {
                 if (sensor_corrected <= range.middle) {
@@ -269,16 +293,16 @@ void AlsCorrection::process(Event& event) {
             sensor_corrected = std::max(sensor_corrected - 14.0, 0.0);
             event.u.scalar = sensor_corrected;
             state.last_corrected_value = sensor_corrected;
-            ALOGV("Fully corrected sensor value: %.0f lux", sensor_corrected);
+            ALOGV("ALS: Final corrected sensor value: %.0f lux", sensor_corrected);
         } else {
             event.u.scalar = state.last_corrected_value;
-            ALOGV("Reusing cached value: %.0f lux", event.u.scalar);
+            ALOGV("ALS: Reusing cached value 1: %.0f lux", event.u.scalar);
         }
 
         state.force_update = false;
     } else {
         event.u.scalar = state.last_corrected_value;
-        ALOGV("Reusing cached value: %.0f lux", event.u.scalar);
+        ALOGV("ALS: Reusing cached value 2: %.0f lux", event.u.scalar);
     }
 }
 
