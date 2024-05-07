@@ -95,39 +95,37 @@ static T get(const std::string& path, const T& def) {
 
 void AlsCorrection::init() {
     std::istringstream is;
-
-    conf.hbr = GetBoolProperty("vendor.sensors.als_correction.hbr", false);
-    conf.bias = GetIntProperty("vendor.sensors.als_correction.bias", 0);
-    is = std::istringstream(GetProperty("vendor.sensors.als_correction.rgbw_max_lux_div", ""));
+    conf.hbr = GetBoolProperty("persist.vendor.sensors.als_correction.hbr", false);
+    conf.bias = GetIntProperty("persist.vendor.sensors.als_correction.bias", 0);
+    is = std::istringstream(GetProperty("persist.vendor.sensors.als_correction.rgbw_max_lux", ""));
+    is >> conf.rgbw_max_lux[0] >> conf.rgbw_max_lux[1]
+        >> conf.rgbw_max_lux[2] >> conf.rgbw_max_lux[3];
+    is = std::istringstream(GetProperty("persist.vendor.sensors.als_correction.rgbw_max_lux_div", ""));
     is >> conf.rgbw_max_lux_div[0] >> conf.rgbw_max_lux_div[1]
         >> conf.rgbw_max_lux_div[2] >> conf.rgbw_max_lux_div[3];
-    is = std::istringstream(GetProperty("vendor.sensors.als_correction.rgbw_poly1", ""));
+    is = std::istringstream(GetProperty("persist.vendor.sensors.als_correction.rgbw_poly1", ""));
     is >> conf.rgbw_poly[0][0] >> conf.rgbw_poly[0][1]
         >> conf.rgbw_poly[0][2] >> conf.rgbw_poly[0][3];
-    is = std::istringstream(GetProperty("vendor.sensors.als_correction.rgbw_poly2", ""));
+    is = std::istringstream(GetProperty("persist.vendor.sensors.als_correction.rgbw_poly2", ""));
     is >> conf.rgbw_poly[1][0] >> conf.rgbw_poly[1][1]
         >> conf.rgbw_poly[1][2] >> conf.rgbw_poly[1][3];
-    is = std::istringstream(GetProperty("vendor.sensors.als_correction.rgbw_poly3", ""));
+    is = std::istringstream(GetProperty("persist.vendor.sensors.als_correction.rgbw_poly3", ""));
     is >> conf.rgbw_poly[2][0] >> conf.rgbw_poly[2][1]
         >> conf.rgbw_poly[2][2] >> conf.rgbw_poly[2][3];
-    is = std::istringstream(GetProperty("vendor.sensors.als_correction.rgbw_poly4", ""));
+    is = std::istringstream(GetProperty("persist.vendor.sensors.als_correction.rgbw_poly4", ""));
     is >> conf.rgbw_poly[3][0] >> conf.rgbw_poly[3][1]
         >> conf.rgbw_poly[3][2] >> conf.rgbw_poly[3][3];
-    is = std::istringstream(GetProperty("vendor.sensors.als_correction.grayscale_weights", ""));
+    is = std::istringstream(GetProperty("persist.vendor.sensors.als_correction.grayscale_weights", ""));
     is >> conf.grayscale_weights[0] >> conf.grayscale_weights[1] >> conf.grayscale_weights[2];
-    is = std::istringstream(GetProperty("vendor.sensors.als_correction.sensor_gaincal_points", ""));
+    is = std::istringstream(GetProperty("persist.vendor.sensors.als_correction.sensor_gaincal_points", ""));
     is >> conf.sensor_gaincal_points[0] >> conf.sensor_gaincal_points[1]
         >> conf.sensor_gaincal_points[2] >> conf.sensor_gaincal_points[3];
-    is = std::istringstream(GetProperty("vendor.sensors.als_correction.sensor_inverse_gain", ""));
+    is = std::istringstream(GetProperty("persist.vendor.sensors.als_correction.sensor_inverse_gain", ""));
     is >> conf.sensor_inverse_gain[0] >> conf.sensor_inverse_gain[1]
         >> conf.sensor_inverse_gain[2] >> conf.sensor_inverse_gain[3];
 
     float rgbw_acc = 0.0;
     for (int i = 0; i < 4; i++) {
-        float max_lux = get(rgbw_max_lux_paths[i], 0.0);
-        if (max_lux != 0.0) {
-            conf.rgbw_max_lux[i] = max_lux;
-        }
         if (i < 3) {
             rgbw_acc += conf.rgbw_max_lux[i];
             conf.rgbw_lux_postmul[i] = conf.rgbw_max_lux[i] / conf.rgbw_max_lux_div[i];
@@ -140,13 +138,13 @@ void AlsCorrection::init() {
         conf.rgbw_max_lux[0], conf.rgbw_max_lux[1],
         conf.rgbw_max_lux[2], conf.rgbw_max_lux[3]);
 
-    float row_coe = get(ALS_CALI_DIR "row_coe", 0.0);
+    float row_coe = GetIntProperty("persist.vendor.sensors.als_correction.row_coe", 0);
     if (row_coe != 0.0) {
         conf.sensor_inverse_gain[0] = row_coe / 1000.0;
     }
     conf.agc_threshold = 800.0 / conf.sensor_inverse_gain[0];
 
-    float cali_coe = get(ALS_CALI_DIR "cali_coe", 0.0);
+    float cali_coe = GetIntProperty("persist.vendor.sensors.als_correction.cali_coe", 0);
     conf.calib_gain = cali_coe > 0.0 ? cali_coe / 1000.0 : 1.0;
     ALOGI("Calibrated sensor gain: %.2fx", 1.0 / (conf.calib_gain * conf.sensor_inverse_gain[0]));
 
