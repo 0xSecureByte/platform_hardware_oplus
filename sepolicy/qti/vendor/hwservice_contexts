@@ -34,6 +34,10 @@ vendor.oplus.hardware.orms::IOrmsHalProxy    u:object_r:vendor_hal_orms_hwservic
 # Osense
 vendor.oplus.hardware.osense.client::IOsenseHalReporter    u:object_r:vendor_hal_osense_hwservice:s0
 
+# Radio
+vendor.qti.hardware.radio.ims.IImsRadio/imsradio0                          u:object_r:hal_telephony_hwservice:s0
+vendor.qti.hardware.radio.ims.IImsRadio/imsradio1                          u:object_r:hal_telephony_hwservice:s0
+
 # Sensors
 vendor.oplus.hardware.oplusSensor::ISensorFeature    u:object_r:vendor_hal_oplusSensor_hwservice:s0
 
