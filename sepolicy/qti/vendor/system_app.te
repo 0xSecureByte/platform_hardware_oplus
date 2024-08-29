@@ -1,0 +1,4 @@
+hal_client_domain(system_app, hal_telephony)
+binder_call(system_app, rild)
+
+allow system_app hal_telephony_hwservice:hwservice_manager find;
