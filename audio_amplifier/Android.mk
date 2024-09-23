@@ -34,7 +34,7 @@ LOCAL_C_INCLUDES += \
     external/tinycompress/include
 
 LOCAL_HEADER_LIBRARIES += \
-    generated_kernel_headers \
+    device_kernel_headers \
     libhardware_headers
 
 LOCAL_SHARED_LIBRARIES += \
