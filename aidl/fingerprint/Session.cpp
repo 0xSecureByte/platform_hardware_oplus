@@ -548,7 +548,7 @@ Return<void> FingerprintCallback::onEngineeringInfoUpdated(
 }
 
 Return<void> FingerprintCallback::onFingerprintCmd(int32_t cmdId,
-                                                     const hidl_vec<int8_t>& result,
+                                                     const hidl_vec<uint32_t>& result,
                                                      uint32_t resultLen) {
     switch (cmdId) {
         case FINGERPRINT_CALLBACK_CMD_ID_ON_TOUCH_DOWN:

@@ -282,7 +282,7 @@ class FingerprintCallback : public IBiometricsFingerprintClientCallback,
     // follow.
     Return<void> onEngineeringInfoUpdated(uint32_t lenth, const hidl_vec<uint32_t>& keys,
                                           const hidl_vec<hidl_string>& values) override;
-    Return<void> onFingerprintCmd(int32_t cmdId, const hidl_vec<int8_t>& result,
+    Return<void> onFingerprintCmd(int32_t cmdId, const hidl_vec<uint32_t>& result,
                                   uint32_t resultLen) override;
 
    private:
