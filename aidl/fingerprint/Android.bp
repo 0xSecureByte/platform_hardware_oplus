@@ -31,7 +31,6 @@ cc_binary {
         "android.hardware.biometrics.common.util",
         "android.hardware.biometrics.common.config",
         "android.hardware.keymaster-V4-ndk",
-        "vendor.chen.aidl.syshelper-V1-ndk",
     ],
 }
 

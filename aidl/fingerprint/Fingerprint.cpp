@@ -38,7 +38,7 @@ constexpr char HW_VERSION[] = "Goodix/G/1";
 constexpr char FW_VERSION[] = "1.01";
 constexpr char SERIAL_NUMBER[] = "00000001";
 constexpr char SW_COMPONENT_ID[] = "matchingAlgorithm";
-constexpr char SW_VERSION[] = "Art_Chen/1/0";
+constexpr char SW_VERSION[] = "oplus/1/0";
 
 }  // namespace
 
@@ -80,12 +80,8 @@ ndk::ScopedAStatus Fingerprint::createSession(int32_t sensorId, int32_t userId,
                                               std::shared_ptr<ISession>* out) {
     CHECK(mSession == nullptr || mSession->isClosed()) << "Open session already exists!";
 
-    std::string instanceName = std::string() + IUdfpsHelper::descriptor + "/default";
-    if (AServiceManager_isDeclared(instanceName.c_str())) {
-        mChenUdfpsHelper = IUdfpsHelper::fromBinder(ndk::SpAIBinder(AServiceManager_waitForService(instanceName.c_str())));
-    }
-    mSession = SharedRefBase::make<Session>(sensorId, userId, cb, mOplusBiometricsFingerprint.get(), mChenUdfpsHelper
-                                            , mLockoutTracker, &mWorker);
+    std::string instanceName = std::string() + "/default";
+    mSession = SharedRefBase::make<Session>(sensorId, userId, cb, mOplusBiometricsFingerprint.get(), mLockoutTracker, &mWorker);
     *out = mSession;
 
     mSession->linkToDeath(cb->asBinder().get());

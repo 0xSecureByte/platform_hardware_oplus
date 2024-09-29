@@ -89,13 +89,12 @@ Error HidlToAidlFingerprintError(::android::hardware::biometrics::fingerprint::V
 }
 
 Session::Session(int sensorId, int userId, std::shared_ptr<ISessionCallback> cb,
-                 IOplusBiometricsFingerprint* oplusFp, std::shared_ptr<IUdfpsHelper> helper,
+                 IOplusBiometricsFingerprint* oplusFp,
                  LockoutTracker lockoutTracker, WorkerThread* worker)
     : mSensorId(sensorId),
       mUserId(userId),
       mCb(std::move(cb)),
       mOplusFp(oplusFp),
-      mHelper(helper),
       mWorker(worker),
       mScheduledState(SessionState::IDLING),
       mCurrentState(SessionState::IDLING),
@@ -108,7 +107,7 @@ Session::Session(int sensorId, int userId, std::shared_ptr<ISessionCallback> cb,
 
     mDeathRecipient = AIBinder_DeathRecipient_new(onClientDeath);
 
-    mOplusFpCallback = new FingerprintCallback(mCb, mHelper, this, mLockoutTracker);
+    mOplusFpCallback = new FingerprintCallback(mCb, this, mLockoutTracker);
 
     mOplusFp->setHalCallback(mOplusFpCallback);
     auto deviceId = mOplusFp->setNotify(mOplusFpCallback);
@@ -457,8 +456,6 @@ Return<void> FingerprintCallback::onEnrollResult(uint64_t deviceId, uint32_t fin
 #ifdef SEND_ACQUIRED_ON_DOWN_OR_UP
     mCb->onAcquired(AcquiredInfo::VENDOR, 0);
 #endif
-    if (mHelper)
-        mHelper->touchUp();
     mCb->onEnrollmentProgress(fingerId, remaining);
     return Void();
 }
@@ -495,9 +492,6 @@ Return<void> FingerprintCallback::onAuthenticated(uint64_t deviceId, uint32_t fi
 #ifdef SEND_ACQUIRED_ON_DOWN_OR_UP
     mCb->onAcquired(AcquiredInfo::VENDOR, 0);
 #endif
-    if (mHelper)
-        mHelper->touchUp();
-
     return Void();
 }
 
@@ -559,16 +553,12 @@ Return<void> FingerprintCallback::onFingerprintCmd(int32_t cmdId,
     switch (cmdId) {
         case FINGERPRINT_CALLBACK_CMD_ID_ON_TOUCH_DOWN:
             LOG(DEBUG) << "onFingerprintCmd: FP Touch Down Detected!";
-            if (mHelper)
-                mHelper->touchDown();
 #ifdef SEND_ACQUIRED_ON_DOWN_OR_UP
             mCb->onAcquired(AcquiredInfo::VENDOR, 1);
 #endif
             break;
         case FINGERPRINT_CALLBACK_CMD_ID_ON_TOUCH_UP:
             LOG(DEBUG) << "onFingerprintCmd: FP Touch Up Detected!";
-            if (mHelper)
-                mHelper->touchUp();
 #ifdef SEND_ACQUIRED_ON_DOWN_OR_UP
             mCb->onAcquired(AcquiredInfo::VENDOR, 0);
 #endif

@@ -17,7 +17,6 @@
 #pragma once
 
 #include <aidl/android/hardware/biometrics/fingerprint/BnFingerprint.h>
-#include <aidl/vendor/chen/aidl/syshelper/IUdfpsHelper.h>
 
 #include <android/hardware/biometrics/fingerprint/2.1/types.h>
 #include <android/hardware/biometrics/fingerprint/2.2/IBiometricsFingerprintClientCallback.h>
@@ -67,7 +66,6 @@ class Fingerprint : public BnFingerprint {
     std::shared_ptr<Session> mSession;
     FingerprintSensorType mSensorType;
     sp<IOplusBiometricsFingerprint> mOplusBiometricsFingerprint;
-    std::shared_ptr<IUdfpsHelper> mChenUdfpsHelper;
 };
 
 }  // namespace aidl::android::hardware::biometrics::fingerprint
