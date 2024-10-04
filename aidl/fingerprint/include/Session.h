@@ -26,18 +26,17 @@
 #include <android/hardware/biometrics/fingerprint/2.2/IBiometricsFingerprintClientCallback.h>
 #include <android/hardware/biometrics/fingerprint/2.3/IBiometricsFingerprint.h>
 
+#include <fcntl.h>
 #include <hidl/MQDescriptor.h>
 #include <hidl/Status.h>
 
+#include <oplus/oplus_display_panel.h>
 #include <vendor/oplus/hardware/biometrics/fingerprint/2.1/IBiometricsFingerprint.h>
 
 #include "thread/WorkerThread.h"
 #include "LockoutTracker.h"
 
 #include <fstream>
-
-#define FP_PRESS_PATH "/sys/kernel/oplus_display/notify_fppress"
-#define DIMLAYER_PATH "/sys/kernel/oplus_display/dimlayer_hbm"
 
 namespace aidl::android::hardware::biometrics::fingerprint {
 
@@ -102,17 +101,6 @@ bool isUdfps() {
     // We need to rely on `persist.vendor.fingerprint.sensor_type` here because we can't get our
     // sensorId from anywhere.
     return GetProperty("persist.vendor.fingerprint.sensor_type", "") == "optical";
-}
-
-bool setDimlayerHbm(unsigned int value) {
-    set(DIMLAYER_PATH, value);
-    return isUdfps() && get(DIMLAYER_PATH, 0) == value;
-}
-
-bool setFpPress(unsigned int value) {
-    LOG(INFO) << "setFpPress " << value;
-    set(FP_PRESS_PATH, value);
-    return isUdfps();
 }
 
 typedef enum fingerprint_callback_cmd_Id {
@@ -245,6 +233,18 @@ class Session : public BnSession {
 
     sp<IOplusBiometricsFingerprint> mOplusBiometricsFingerprint;
     sp<V2_1::IBiometricsFingerprintClientCallback> mClientCallback;
+
+    int mOplusDisplayFd;
+
+    bool setDimlayerHbm(unsigned int value) {
+        LOG(INFO) << "fpthing: setDimlayerHbm: " << value;
+        return isUdfps() && ioctl(mOplusDisplayFd, PANEL_IOCTL_SET_DIMLAYER_HBM, &value) == 0;
+    }
+
+    bool setFpPress(unsigned int value) {
+        LOG(INFO) << "fpthing: setFpPress: " << value;
+        return isUdfps() && ioctl(mOplusDisplayFd, PANEL_IOCTL_SET_FP_PRESS, &value) == 0;
+    }
 };
 
 class FingerprintCallback : public IBiometricsFingerprintClientCallback,

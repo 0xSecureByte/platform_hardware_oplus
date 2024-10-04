@@ -98,7 +98,8 @@ Session::Session(int sensorId, int userId, std::shared_ptr<ISessionCallback> cb,
       mWorker(worker),
       mScheduledState(SessionState::IDLING),
       mCurrentState(SessionState::IDLING),
-      mLockoutTracker(lockoutTracker) {
+      mLockoutTracker(lockoutTracker),
+      mOplusDisplayFd(open("/dev/oplus_display", O_RDWR)) {
     CHECK_GE(mSensorId, 0);
     CHECK_GE(mUserId, 0);
     CHECK(oplusFp);
@@ -472,11 +473,11 @@ Return<void> FingerprintCallback::onAcquired(uint64_t deviceId,
 Return<void> FingerprintCallback::onAuthenticated(uint64_t deviceId, uint32_t fingerId,
                                                     uint32_t groupId,
                                                     const hidl_vec<uint8_t>& token) {
-    setFpPress(DISABLE);
+    mSession->setFpPress(DISABLE);
     LOG(INFO) << "onAuthenticated()";
 
     if (fingerId != 0) {
-        setDimlayerHbm(DISABLE);
+        mSession->setDimlayerHbm(DISABLE);
         hw_auth_token_t* hat = (hw_auth_token_t *) token.data();
         HardwareAuthToken authToken;
         translate(*hat, authToken);
@@ -497,8 +498,8 @@ Return<void> FingerprintCallback::onAuthenticated(uint64_t deviceId, uint32_t fi
 
 Return<void> FingerprintCallback::onError(uint64_t deviceId, FingerprintError error,
                                             int32_t vendorCode) {
-    setDimlayerHbm(DISABLE);
-    setFpPress(DISABLE);
+    mSession->setDimlayerHbm(DISABLE);
+    mSession->setFpPress(DISABLE);
 
     LOG(INFO) << "onError()";
 
@@ -566,5 +567,4 @@ Return<void> FingerprintCallback::onFingerprintCmd(int32_t cmdId,
     }
     return Void();
 }
-
 }  // namespace aidl::android::hardware::biometrics::fingerprint

@@ -12,6 +12,7 @@ cc_binary {
         "CancellationSignal.cpp",
         "main.cpp",
     ],
+    header_libs: ["kernel_headers.oplus"],
     shared_libs: [
         "libbinder_ndk",
         "liblog",
