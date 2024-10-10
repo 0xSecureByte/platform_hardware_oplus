@@ -18,6 +18,8 @@
 
 #include <android-base/file.h>
 #include <android-base/logging.h>
+#include <android-base/parseint.h>
+#include <android-base/strings.h>
 #include <android-base/properties.h>
 #include <android-base/stringprintf.h>
 
@@ -57,9 +59,18 @@ ndk::ScopedAStatus Fingerprint::getSensorProps(std::vector<SensorProps>* out) {
 
     SensorLocation sensorLocation;
 
-    sensorLocation.sensorLocationX = 540;
-    sensorLocation.sensorLocationY = 2156;
-    sensorLocation.sensorRadius = 95;
+    std::string sensor_loc = ::android::base::GetProperty("persist.vendor.fingerprint.sensor_location", "");
+    std::vector<std::string> dimensions = ::android::base::Split(sensor_loc, "|");
+    if (dimensions.size() >= 3 && dimensions.size() <= 4) {
+        ::android::base::ParseInt(dimensions[0], &sensorLocation.sensorLocationX);
+        ::android::base::ParseInt(dimensions[1], &sensorLocation.sensorLocationY);
+        ::android::base::ParseInt(dimensions[2], &sensorLocation.sensorRadius);
+        if (dimensions.size() >= 4) {
+            sensorLocation.display = dimensions[3];
+        }
+    } else if (sensor_loc.length() > 0) {
+        LOG(WARNING) << "Invalid sensor location (locX|locY|radius|display): " << sensor_loc;
+    }
 
     LOG(INFO) << "sensor type:" << ::android::internal::ToString(mSensorType)
               << " location:" << sensorLocation.toString();
