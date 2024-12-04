@@ -16,7 +16,3 @@ type vendor_hal_performance_hwservice, hwservice_manager_type, protected_hwservi
 
 # Sensors
 type vendor_hal_oplusSensor_hwservice, hwservice_manager_type, protected_hwservice;
-
-# Diaghal
-type hal_diag_hwservice, hwservice_manager_type;
-
